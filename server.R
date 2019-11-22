@@ -18,17 +18,31 @@ import_dialog <- function() {
     )
 }
 
-# test <- rbindlist(lapply(list.files("data", full.names=T)[1:10], function(i) as.data.table(fromJSON(i)$aircraft)), fill = T)
+setting_dialog <- function() {
+    modalDialog(
+        div(style = "text-align: center;", "Work in Progress"),
+        footer = NULL,
+        size = "s",
+        easyClose = T
+    )
+}
 
-# leaflet(quakes) %>% addTiles() %>% addCircleMarkers(
-#     radius = 5, stroke = FALSE, fillOpacity = 0.25
-# )
+help_dialog <- function() {
+    modalDialog(
+        div(style = "text-align: center;", "Work in Progress"),
+        footer = NULL,
+        size = "s",
+        easyClose = T
+    )
+}
 
 server <- function(input, output, session) {
     
     onclick("btn_import", showModal(import_dialog()))
     onclick("btn_view", toggle("track_panel"))
     onclick("btn_slider", toggle("selection_panel"))
+    onclick("btn_settings", showModal(setting_dialog()))
+    onclick("btn_question", showModal(help_dialog()))
     
     output$map <- renderLeaflet({
         x <- leaflet(options = leafletOptions(zoomControl = F, preferCanvas = T)) %>%

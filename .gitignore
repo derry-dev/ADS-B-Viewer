@@ -1,6 +1,9 @@
 # Data files directory
 /data/
 
+# R project files
+*.Rproj
+
 # History files
 .Rhistory
 .Rapp.history
