@@ -1,19 +1,17 @@
 import_dialog <- function() {
     modalDialog(
         div(
-            style = "display: flex; justify-content: flex-start",
-            prettyRadioButtons(
+            style = "text-align: center;",
+            radioGroupButtons(
                 "data_source", "Select Data Source",
                 choiceNames = c("Raw JSON", "Database"),
                 choiceValues = c("json", "db"),
-                shape = "round",
-                animation = "smooth",
-                inline = T
-            )
+                selected = "json"
+            ),
+            uiOutput("data_import")
         ),
-        uiOutput("data_import"),
         footer = NULL,
-        size = "m",
+        size = "s",
         easyClose = T
     )
 }
@@ -38,48 +36,70 @@ help_dialog <- function() {
 
 server <- function(input, output, session) {
     
+    # Sidebar button toggling
+    
     onclick("btn_import", showModal(import_dialog()))
+    
     onclick("btn_view", toggle("track_panel"))
-    onclick("btn_slider", toggle("selection_panel"))
+    
+    onclick("btn_filter", toggle("selection_panel"))
+    
+    onclick("btn_camera", click("screenshot"))
+    
+    observeEvent(input$btn_clear, leafletProxy("map") %>% clearGroup("Tracks"))
+    
     onclick("btn_settings", showModal(setting_dialog()))
+    
     onclick("btn_question", showModal(help_dialog()))
     
-    output$map <- renderLeaflet({
-        x <- leaflet(options = leafletOptions(zoomControl = F, preferCanvas = T)) %>%
-            setView(lng = -1.85, lat = 50.81, zoom = 8)
-        tile_providers <- list(
-            `Esri Satellite` = "Esri.WorldImagery",
-            `Esri Terrain` = "Esri.WorldTerrain",
-            `Esri Relief` = "Esri.WorldShadedRelief",
-            `Esri Physical` = "Esri.WorldPhysical",
-            `Esri Ocean` = "Esri.OceanBasemap",
-            `Esri Nat Geo` = "Esri.NatGeoWorldMap",
-            `CartoDB Light` = "CartoDB.Positron",
-            `CartoDB Light 2` = "CartoDB.PositronNoLabels",
-            `CartoDB Dark` = "CartoDB.DarkMatter",
-            `CartoDB Dark 2` = "CartoDB.DarkMatterNoLabels",
-            `OSM Mapnik` = "OpenStreetMap.Mapnik",
-            `OSM B&W` = "OpenStreetMap.BlackAndWhite"
-        )
-        for (i in 1:length(tile_providers)) {
-            x <- x %>% addProviderTiles(providers[[tile_providers[[i]]]], options = providerTileOptions(noWrap = T), group = names(tile_providers)[i])
-        }
-        x <- x %>% addLayersControl(baseGroups = names(tile_providers), options = layersControlOptions(collapsed = T))
+    # Loading spinner
+    
+    output$spinner <- renderUI({
+        htmltools::HTML('<div class="loader"></div>')
     })
+    
+    # Render map
+    
+    map <- reactiveValues(
+        dat = {
+            x <- leaflet(options = leafletOptions(zoomControl = F, preferCanvas = T)) %>%
+                setView(lng = -1.85, lat = 50.81, zoom = 8)
+            tile_providers <- list(
+                `Esri Satellite` = "Esri.WorldImagery",
+                `Esri Terrain` = "Esri.WorldTerrain",
+                `Esri Ocean` = "Esri.OceanBasemap",
+                `CartoDB Light` = "CartoDB.Positron",
+                `CartoDB Light 2` = "CartoDB.PositronNoLabels",
+                `CartoDB Dark` = "CartoDB.DarkMatter",
+                `CartoDB Dark 2` = "CartoDB.DarkMatterNoLabels",
+                `OSM Mapnik` = "OpenStreetMap.Mapnik"
+            )
+            for (i in 1:length(tile_providers)) {
+                x <- x %>% addProviderTiles(providers[[tile_providers[[i]]]], options = providerTileOptions(noWrap = T), group = names(tile_providers)[i])
+            }
+            x <- x %>% addLayersControl(baseGroups = names(tile_providers), options = layersControlOptions(collapsed = T))
+        }
+    )
+    
+    output$map <- renderLeaflet(map$dat)
+    
+    # Import dialog logic
     
     observeEvent(input$data_source, {
         if (input$data_source == "json") {
             output$data_import <- renderUI({
                 tagList(
-                    multiInput(
-                        "imported_files", "Choose JSON Files",
-                        choices = list.files("data", pattern = ".json"),
-                        width = "100%"
-                    ),
                     div(
-                        style = "text-align: center",
-                        actionButton("data_confirm", "Confirm")
-                    )
+                        style = "padding-left: 25px;",
+                        pickerInput(
+                            "imported_files", "Choose JSON Files",
+                            choices = list.files("data", pattern = ".json"),
+                            multiple = T,
+                            options = list(`actions-box` = T, `live-search` = T),
+                            width = "220px"
+                        )
+                    ),
+                    actionButton("data_confirm", "Confirm")
                 )
             })
         } else if (input$data_source == "db") {
@@ -97,6 +117,26 @@ server <- function(input, output, session) {
             selected = unique(gsub("^([0-9]{4}-[0-9]{2}-[0-9]{2})\\s.*$", "\\1", json()$Timestamp))
         )
     })
+    
+    # Display imported data table
+    
+    observeEvent(input$data_confirm, {
+        output$track_table <- renderDataTable(
+            datatable(
+                json(),
+                rownames = F,
+                selection = "none",
+                options = list(
+                    pageLength = 10,
+                    lengthChange = F,
+                    columnDefs = list(list(className = 'dt-center', targets = "_all")),
+                    scrollX = T
+                )
+            )
+        )
+    })
+    
+    # Track filtering
     
     observeEvent(input$track_dates, {
         updatePickerInput(
@@ -174,5 +214,15 @@ server <- function(input, output, session) {
             
         }
     })
+    
+    # Screenshot
+    
+    output$screenshot <- downloadHandler(
+        filename = "map.png",
+        
+        content = function(file) {
+            mapshot(map$dat, file = file, delay = 0)
+        }
+    )
     
 }
