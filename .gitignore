@@ -1,6 +1,3 @@
-# Data files directory
-/data/
-
 # R project files
 *.Rproj
 
@@ -40,3 +37,7 @@ vignettes/*.pdf
 # Temporary files created by R markdown
 *.utf8.md
 *.knit.md
+
+# JSON data
+data/*
+!data/example.json

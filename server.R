@@ -172,21 +172,13 @@ server <- function(input, output, session) {
     
     lab <- reactive({
         if (dim(json_filtered())[1] != 0 & dim(json_filtered())[2] != 0) {
-            sprintf("
-              <b>Callsign</b>: %s <font size='1'><b>Squawk</b> %s</font><br/>
-              <b>Timestamp</b>: %s<br/>
-              <b>Alt (baro)</b>: %s <b>(geom)</b>: %s<br/>
-              <b>IAS</b>: %s <b>TAS</b>: %s<br/>
-              <b>Mag Heading</b>: %s<br/>
-              <b>Roll</b>: %s<br/>
-              ",
-                    json_filtered()$flight, json_filtered()$squawk,
-                    json_filtered()$Timestamp,
-                    json_filtered()$alt_baro, json_filtered()$alt_geom,
-                    json_filtered()$ias, json_filtered()$tas,
-                    json_filtered()$mag_heading,
-                    json_filtered()$roll
-            ) %>% lapply(htmltools::HTML)
+			n <- names(json_filtered())
+			do.call(
+				sprintf, c(
+					list(paste(paste0("<b>", n, "</b>: %s"), collapse = "<br/>")),
+					lapply(n, function(x) json_filtered()[[x]])
+				)
+			) %>% lapply(htmltools::HTML)
         } else {
             NULL
         }
